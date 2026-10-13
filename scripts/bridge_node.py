@@ -58,7 +58,7 @@ class VacuumBridgeNode(Node):
         'wheel_m_per_tick': 1.0 / 4464.0,  # encoder ticks -> meters
         'wheel_track_m': 0.233,  # distance between wheels
         'wheel_tick_bits': 16,  # encoder counters wrap at 2^bits
-        'gyro_rad_per_lsb': math.radians(0.061),  # 2000 dps over int16
+        'gyro_rad_per_lsb': math.radians(0.01025),  # GD32 reports ~0.01 deg/s
         'accel_mps2_per_lsb': 2.0 * 9.81 / 32768.0,  # 2 g over int16
     }
 

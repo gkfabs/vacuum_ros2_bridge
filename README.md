@@ -212,7 +212,7 @@ Proscenic M6 Pro (CRL-200S) and the Roborock S5 Max.
 | `wheel_m_per_tick` | Wheel travel per encoder tick (m) | 1/4464 | 0.000798 |
 | `wheel_track_m` | Distance between wheels (m) | 0.233 | 0.229 |
 | `wheel_tick_bits` | Encoder counters wrap at 2^bits | 16 | 16 |
-| `gyro_rad_per_lsb` | Gyro count to rad/s | 0.061 deg/s | 0.001 |
+| `gyro_rad_per_lsb` | Gyro count to rad/s | 0.01025 deg/s | 0.001 |
 | `accel_mps2_per_lsb` | Accel count to m/s² | 2 g / 32768 | not advertised |
 
 Any of these can be overridden with a ROS parameter of the same name (e.g.
