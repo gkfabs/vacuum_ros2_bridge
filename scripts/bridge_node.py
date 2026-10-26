@@ -25,7 +25,9 @@ Services:
 """
 
 import math
+import time
 import rclpy
+from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from rclpy.duration import Duration
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
@@ -38,7 +40,8 @@ from nav_msgs.msg import Odometry
 from tf2_ros import TransformBroadcaster
 
 # Custom messages (will be available after building)
-from vacuum_ros2_bridge.msg import Bumper, Cliff, VacuumStatus, ActuatorCommand, LedCommand
+from vacuum_ros2_bridge.msg import (
+    ActuatorCommand, Bumper, Cliff, LedCommand, VacuumStatus)
 from vacuum_ros2_bridge.srv import SetActuator, SetLed, SetLidar
 
 # SangamIO client
@@ -72,6 +75,8 @@ class VacuumBridgeNode(Node):
         self.declare_parameter('odom_frame_id', 'odom')
         self.declare_parameter('lidar_frame_id', 'laser')
         self.declare_parameter('publish_tf', False)
+        self.declare_parameter('undock_before_lidar', False)
+        self.declare_parameter('undock_timeout_sec', 20.0)
         # Seconds added to each /scan stamp. The LiDAR data is older than the
         # moment we publish it (sensor + transport + assembly delay), so a small
         # NEGATIVE value back-dates the scan to when it was actually measured and
@@ -94,6 +99,10 @@ class VacuumBridgeNode(Node):
         self.odom_frame_id = self.get_parameter('odom_frame_id').value
         self.lidar_frame_id = self.get_parameter('lidar_frame_id').value
         self.publish_tf = self.get_parameter('publish_tf').value
+        self.undock_before_lidar = self.get_parameter(
+            'undock_before_lidar').value
+        self.undock_timeout_sec = float(
+            self.get_parameter('undock_timeout_sec').value)
         self.scan_time_offset = self.get_parameter('scan_time_offset').value
         self.scan_masked = self._build_scan_mask(
             self.get_parameter('scan_mask_deg').value)
@@ -159,6 +168,7 @@ class VacuumBridgeNode(Node):
         self.y = 0.0
         self.theta = 0.0
         self.last_odom_time = None
+        self.sensor_update_received = False
 
         # LiDAR scan timing: measure the real rotation period from the interval
         # between consecutive full scans, rather than assuming a fixed 5 Hz.
@@ -174,6 +184,8 @@ class VacuumBridgeNode(Node):
 
     def _on_conn_status(self, connected: bool):
         """Connection-status callback from the client worker thread."""
+        if not rclpy.ok():
+            return
         if connected:
             self.get_logger().info('Connected to SangamIO')
         else:
@@ -182,6 +194,8 @@ class VacuumBridgeNode(Node):
     def _on_sensor_update(self, topic: str, data: SensorData):
         """Handle sensor data update from SangamIO."""
         now = self.get_clock().now().to_msg()
+
+        self.sensor_update_received = True
 
         # Publish IMU
         self._publish_imu(data, now)
@@ -478,6 +492,8 @@ class VacuumBridgeNode(Node):
         msg.battery_percent = data.battery_percent
         msg.is_charging = data.is_charging
         msg.is_docked = data.is_docked
+        msg.dock_ir_left_mask = data.dock_ir_left_mask
+        msg.dock_ir_right_mask = data.dock_ir_right_mask
         msg.dustbox_attached = data.dustbox_attached
         msg.water_tank_level = data.water_tank_level
         msg.start_button_pressed = data.start_button
@@ -501,6 +517,8 @@ class VacuumBridgeNode(Node):
             self.client.set_side_brush(speed)
         elif component == 'water_pump':
             self.client.set_water_pump(speed)
+        elif component == 'charger':
+            self.client.set_charger(speed > 0)
         else:
             self.get_logger().warn(f'Unknown actuator: {component}')
 
@@ -522,6 +540,8 @@ class VacuumBridgeNode(Node):
             success = self.client.set_side_brush(speed)
         elif component == 'water_pump':
             success = self.client.set_water_pump(speed)
+        elif component == 'charger':
+            success = self.client.set_charger(speed > 0)
         else:
             response.success = False
             response.message = f'Unknown actuator: {component}'
@@ -540,6 +560,38 @@ class VacuumBridgeNode(Node):
 
     def _set_lidar_callback(self, request, response):
         """Handle set_lidar service."""
+        if request.enable and self.undock_before_lidar:
+            status_deadline = time.monotonic() + 3.0
+            while (not self.sensor_update_received
+                   and time.monotonic() < status_deadline):
+                time.sleep(0.05)
+            if not self.sensor_update_received:
+                response.success = False
+                response.message = 'No robot status is available before LiDAR startup'
+                return response
+
+            if (self.client.sensor_data.is_docked
+                    or self.client.sensor_data.is_charging):
+                self.get_logger().info(
+                    'The robot is docked. Starting the guarded undock procedure.')
+                if not self.client.undock():
+                    response.success = False
+                    response.message = 'Failed to send guarded undock command'
+                    return response
+
+                undock_deadline = time.monotonic() + self.undock_timeout_sec
+                while time.monotonic() < undock_deadline:
+                    if (not self.client.sensor_data.is_docked
+                            and not self.client.sensor_data.is_charging):
+                        break
+                    time.sleep(0.05)
+                else:
+                    response.success = False
+                    response.message = (
+                        'The robot did not leave the dock before LiDAR startup')
+                    return response
+                self.get_logger().info(
+                    'The robot left the dock. Starting the LiDAR.')
         success = self.client.set_lidar(request.enable)
         response.success = success
         response.message = 'OK' if success else 'Failed to send command'
@@ -567,11 +619,12 @@ def main(args=None):
 
     try:
         rclpy.spin(node)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, ExternalShutdownException):
         pass
     finally:
         node.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():
+            rclpy.shutdown()
 
 
 if __name__ == '__main__':

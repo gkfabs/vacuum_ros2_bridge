@@ -48,6 +48,18 @@ def generate_launch_description():
                     'external node (e.g. robot_localization EKF) provides it.'
     )
 
+    undock_before_lidar_arg = DeclareLaunchArgument(
+        'undock_before_lidar',
+        default_value='false',
+        description='Request the driver guarded undock procedure before LiDAR startup.'
+    )
+
+    undock_timeout_arg = DeclareLaunchArgument(
+        'undock_timeout_sec',
+        default_value='20.0',
+        description='Maximum time to wait for the robot to leave the dock.'
+    )
+
     scan_time_offset_arg = DeclareLaunchArgument(
         'scan_time_offset',
         default_value='0.0',
@@ -76,6 +88,10 @@ def generate_launch_description():
             'lidar_frame_id': LaunchConfiguration('lidar_frame_id'),
             'publish_tf': ParameterValue(LaunchConfiguration('publish_tf'),
                                          value_type=bool),
+            'undock_before_lidar': ParameterValue(
+                LaunchConfiguration('undock_before_lidar'), value_type=bool),
+            'undock_timeout_sec': ParameterValue(
+                LaunchConfiguration('undock_timeout_sec'), value_type=float),
             'scan_time_offset': ParameterValue(
                 LaunchConfiguration('scan_time_offset'), value_type=float),
             'scan_mask_deg': LaunchConfiguration('scan_mask_deg'),
@@ -89,6 +105,8 @@ def generate_launch_description():
         odom_frame_id_arg,
         lidar_frame_id_arg,
         publish_tf_arg,
+        undock_before_lidar_arg,
+        undock_timeout_arg,
         scan_time_offset_arg,
         scan_mask_deg_arg,
         bridge_node,

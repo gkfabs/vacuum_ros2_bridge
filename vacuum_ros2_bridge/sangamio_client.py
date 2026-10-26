@@ -51,6 +51,10 @@ class SensorData:
     is_charging: bool = False
     is_docked: bool = False
 
+    # Roborock dock infrared receiver masks
+    dock_ir_left_mask: int = 0
+    dock_ir_right_mask: int = 0
+
     # Attachments
     dustbox_attached: bool = False
     water_tank_level: int = 0
@@ -584,6 +588,12 @@ class SangamIOClient:
             self.sensor_data.is_charging = bool(values['is_charging'])
         if 'is_dock_connected' in values:
             self.sensor_data.is_docked = bool(values['is_dock_connected'])
+        if 'dock_ir_left_mask' in values:
+            self.sensor_data.dock_ir_left_mask = int(
+                values['dock_ir_left_mask'])
+        if 'dock_ir_right_mask' in values:
+            self.sensor_data.dock_ir_right_mask = int(
+                values['dock_ir_right_mask'])
 
         # Attachments
         if 'dustbox_attached' in values:
@@ -848,6 +858,16 @@ class SangamIOClient:
         action = 0 if enabled else 1  # ENABLE or DISABLE
         cmd = self._build_component_control("lidar", action)
         return self.send_command(cmd)
+
+    def set_charger(self, enabled: bool) -> bool:
+        """Enable or disable the charger."""
+        action = 0 if enabled else 1  # ENABLE or DISABLE
+        cmd = self._build_component_control("charger", action)
+        return self.send_command(cmd)
+
+    def undock(self) -> bool:
+        """Request the robot driver's guarded undock procedure."""
+        return self.send_command(self._build_component_control("undock", 0))
 
     # Telemetry transport control (UDP is the low-latency LAN default; TCP is a
     # fallback for clients behind NAT / remote where UDP unicast can't get back).

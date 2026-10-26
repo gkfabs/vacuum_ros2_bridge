@@ -180,6 +180,8 @@ float32 battery_voltage      # Volts (13.5-15.5V typical)
 uint8 battery_percent        # 0-100%
 bool is_charging
 bool is_docked
+uint8 dock_ir_left_mask      # Raw left dock infrared receiver history
+uint8 dock_ir_right_mask     # Raw right dock infrared receiver history
 bool dustbox_attached
 uint8 water_tank_level       # 0-100% (2-in-1 mop box only)
 bool start_button_pressed
