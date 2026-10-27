@@ -6,7 +6,7 @@ float32 battery_voltage      # Volts (13.5-15.5V typical)
 uint8 battery_percent        # 0-100%
 bool is_charging             # Currently charging
 bool is_docked               # On charging dock
-uint8 dock_ir_left_mask      # Raw left dock infrared receiver history
+uint8 dock_ir_front_mask     # Raw front dock infrared receiver history
 uint8 dock_ir_right_mask     # Raw right dock infrared receiver history
 
 # Attachments

@@ -52,7 +52,7 @@ class SensorData:
     is_docked: bool = False
 
     # Roborock dock infrared receiver masks
-    dock_ir_left_mask: int = 0
+    dock_ir_front_mask: int = 0
     dock_ir_right_mask: int = 0
 
     # Attachments
@@ -588,9 +588,9 @@ class SangamIOClient:
             self.sensor_data.is_charging = bool(values['is_charging'])
         if 'is_dock_connected' in values:
             self.sensor_data.is_docked = bool(values['is_dock_connected'])
-        if 'dock_ir_left_mask' in values:
-            self.sensor_data.dock_ir_left_mask = int(
-                values['dock_ir_left_mask'])
+        if 'dock_ir_front_mask' in values:
+            self.sensor_data.dock_ir_front_mask = int(
+                values['dock_ir_front_mask'])
         if 'dock_ir_right_mask' in values:
             self.sensor_data.dock_ir_right_mask = int(
                 values['dock_ir_right_mask'])

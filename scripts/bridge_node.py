@@ -492,7 +492,7 @@ class VacuumBridgeNode(Node):
         msg.battery_percent = data.battery_percent
         msg.is_charging = data.is_charging
         msg.is_docked = data.is_docked
-        msg.dock_ir_left_mask = data.dock_ir_left_mask
+        msg.dock_ir_front_mask = data.dock_ir_front_mask
         msg.dock_ir_right_mask = data.dock_ir_right_mask
         msg.dustbox_attached = data.dustbox_attached
         msg.water_tank_level = data.water_tank_level
